@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selfie AI Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+
+
+
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --text-color: #3B82F6;
+            --header-bg: rgba(248, 250, 252, 1);
+            --input-bg: #ffffff;
+            --terminal-opacity: 0.1;
+            --terminal-color: #0f172a;
+        }
+
+        .dark {
+            --bg-color: #020617;
+            --text-color: #f8fafc;
+            --header-bg: rgba(2, 6, 23, 0.8);
+            --input-bg: #1e293b;
+            --terminal-opacity: 0.2;
+            --terminal-color: #ffffff;
+        }
+  @keyframes marquee-continuous {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(100%); } /* التحرك لليمين لأن الموقع RTL */
+}
+
+.animate-marquee-continuous {
+    display: inline-block;
+    padding-left: 100%; 
+    /* بداية الحركة من خارج الشاشة */
+    animation: marquee-continuous 90s linear infinite;
+}
+
+/* تحسين شكل الشريط في الوضع الداكن */
+.dark .animate-marquee-continuous span {
+    text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+/* توهج النص (قيد المراجعة) */
+.status-text-glow {
+    font-weight: 900;
+    text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    transition: all 0.3s ease;
+}
+.dark .status-text-glow {
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+}
+
+/* الدوائر البارزة */
+.status-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.2);
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* دائرة الصح الخضراء المتوهجة */
+.circle-verified {
+    background: #10B981; /* أخضر */
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+}
+
+
+
+        body { 
+            font-family: 'Tajawal', sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-color);
+            transition: background-color 0.5s ease, color 0.5s ease;
+            overflow: hidden; 
+        }
+
+        /* 1. تكبير وبروز أيقونة الترمينال في الخلفية */
+      /* ابحث عن كلاس terminal-bg وعدل ما بداخله */
+.terminal-bg i, .terminal-bg svg {
+    width: 500px !important;  /* كبّر الرقم هنا يدوياً كما تشاء */
+    height: 500px !important; /* يجب أن يكون نفس رقم العرض */
+    opacity: 0.1;             /* درجة الشفافية */
+    transition: all 0.5s ease;
+}
+
+      .hero-bg {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* اجعل الـ z-index سالباً ليكون خلف كل شيء */
+    z-index: -1;
+    text-align: center;
+    width: 100%;
+    /* تقليل الشفافية أكثر لضمان وضوح النص فوقه */
+    opacity: 0.4;
+    pointer-events: none;
+    /* لمنع التداخل مع النقرات */
+}
+        .animate-in {
+    scroll-margin-top: 100px; /* يعطي مساحة للهيدر عند القفز */
+}
+
+
+        /* 2. توهج نيوني دائم للمدخل (ظل أزرق كبير وبارز) */
+/* التوهج في الوضع الفاتح */
+.neon-input-permanent {
+    background: white;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.15), 
+                0 10px 30px -10px rgba(59, 130, 246, 0.1);
+}
+
+/* التوهج عند التركيز في الوضع الفاتح */
+.neon-input-permanent:focus-within {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 
+                0 0 10px rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+}
+
+        .shaikh-title {
+            display: block; font-size: 2rem; font-weight: 900; color: #3B82F6;
+            border-right: 5px solid #3b82f6; padding-right: 15px; margin: 2rem 0;
+        }
+
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+
+        /* تنسيق زر النسخ */
+        .copy-button {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+        }
+        .ai-card:hover .copy-button {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* تأثير التوهج والبروز الأولي */
+/* --- التعديل الجديد لحل مشكلة الخروج عن الشاشة --- */
+
+/* 1. حالة البروز الأولي (بدون تغيير الحجم scale) */
+.hero-initial-glow {
+    /* نعتمد فقط على التوهج والظلال للبروز */
+    filter: drop-shadow(0 0 25px rgba(59, 130, 246, 0.9));
+    /* نضمن الشفافية الكاملة في البداية */
+    opacity: 1 !important;
+    /* تحسين الترانزيشن ليكون أنعم عند الاختفاء */
+    transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+    /* نضمن عدم خروج أي محتوى فرعي */
+    will-change: filter, opacity;
+}
+
+/* 2. أنيميشن النبض الجديد: يعتمد على التوهج والشفافية فقط */
+@keyframes welcome-pulse-safe {
+    0%, 100% {
+        filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.6));
+        opacity: 0.8;
+    }
+    50% {
+        filter: drop-shadow(0 0 35px rgba(59, 130, 246, 1));
+        opacity: 1;
+    }
+}
+
+/* تطبيق الأنيميشن الآمن */
+.animate-welcome-safe {
+    /* تم تقليل السرعة قليلاً ليكون النبض أرقى */
+    animation: welcome-pulse-safe 4s infinite ease-in-out;
+}
+
+/* 3. حالة الخفتان (تم تحسينها لتكون أكثر نعومة) */
+.hero-faded {
+    filter: drop-shadow(0 0 0px transparent);
+    opacity: 0.12 !important; /* خافتة جداً */
+    transition: all 2s ease-in-out;
+    /* منع الأنميشن من العمل في الخلفية لتوفير الأداء */
+    animation: none !important;
+}
+
+/* تأمين الحاوية الرئيسية */
+.hero-bg {
+    /* نضمن أن الحاوية نفسها لا تسبب تمدداً */
+    max-width: 100vw;
+    overflow: hidden;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const firebaseConfig = {
+    apiKey: "AIzaSyCaFZNgxoXnjuh-0zlQ8lp8pVp2YUMmsp4",
+    databaseURL: "https://thesalafikiller-default-rtdb.firebaseio.com/",
+    projectId: "thesalafikiller"
+};
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.database();
+
+        // 1. ضع هذا المكون خارج دالة App الرئيسية
+function UserMessage({ text }) {
+    const [isExpanded, setIsExpanded] = React.useState(false);
+    const maxLength = 150; // يمكنك تغيير هذا الرقم للتحكم في متى يختصر النص
+    const isLongText = text && text.length > maxLength;
+
+    const displayText = isExpanded ? text : text.slice(0, maxLength);
+
+    return (
+        <div className="flex flex-col gap-4 mb-12 animate-in fade-in slide-in-from-bottom-5">
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#3B82F6] flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                    <i data-lucide="user" className="w-5 h-5"></i>
+                </div>
+                <span className="text-[#3B82F6] font-[900] text-xl tracking-widest drop-shadow-[0_0_8px_rgba(59,130,246,0.4)]">
+                    سؤالك:
+                </span>
+            </div>
+
+            <div className="pr-12 relative">
+                <h2 className="text-2xl font-black leading-tight dark:text-white text-slate-900 drop-shadow-sm transition-all duration-300">
+                    {displayText}
+                    {!isExpanded && isLongText && "..."}
+                </h2>
+
+                {isLongText && (
+                    <button 
+                        onClick={() => {
+                            setIsExpanded(!isExpanded);
+                            setTimeout(() => window.lucide.createIcons(), 10); // لتحديث أيقونة السهم فوراً
+                        }}
+                        className="mt-3 flex items-center gap-2 text-[#3B82F6] font-bold hover:text-blue-400 transition-all"
+                    >
+                        {isExpanded ? "عرض أقل" : "عرض السؤال كاملاً"}
+                        <i data-lucide={isExpanded ? "chevron-up" : "chevron-down"} className="w-4 h-4"></i>
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
+
+
+        function App() {
+            const [input, setInput] = useState("");
+            const [messages, setMessages] = useState([]);
+            const messagesEndRef = useRef(null);
+            const [isUserScrollingUp, setIsUserScrollingUp] = useState(false);
+
+            const [loading, setLoading] = useState(false);
+            const [isDarkMode, setIsDarkMode] = useState(false);
+            const [isMenuOpen, setIsMenuOpen] = useState(false);
+            const systemPrompt = `أنت مساعد ذكاء اصطناعي متخصص في العلوم الشرعية. 
+يجب أن تكون إجاباتك مستمدة حصراً من المنهج السلفي ومصادر أهل السنة والجماعة. 
+لو حد سألك علي علي جمعة ده من الصوفية ضال مبتدع مخرف
+عند الاستدلال، ركز على الكتاب والسنة بفهم سلف الأمة، مع الإشارة للمراجع مثل كتب ابن تيمية، ابن القيم، والعلماء المعاصرين الموثوقين.
+استخدم تنسيق Markdown ووضع العناوين الرئيسية بين **عناوين**.`;
+// وظيفة النزول التلقائي للأسفل
+const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+};
+const [isHeroProminent, setIsHeroProminent] = useState(true);
+
+    // إنهاء البروز تلقائياً بعد 5 ثوانٍ
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setIsHeroProminent(false);
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    // إنهاء البروز فوراً عند البدء في الكتابة
+    useEffect(() => {
+        if (input.trim() !== "") {
+            setIsHeroProminent(false);
+        }
+    }, [input]);
+
+useEffect(() => {
+    // التمرير فقط إذا كان التحميل مستمراً أو الرسائل تغيرت
+    // نستخدم 'instant' بدلاً من 'smooth' أثناء البث (Streaming) لتقليل الاهتزاز
+    messagesEndRef.current?.scrollIntoView({ behavior: loading ? "instant" : "smooth" });
+}, [messages, loading]);
+useEffect(() => {
+    const fatwaRef = db.ref('fatwas');
+    fatwaRef.on('child_changed', (snapshot) => {
+        const updatedFatwa = snapshot.val();
+        const fatwaId = snapshot.key;
+        
+        if (updatedFatwa.verified) {
+            // تحديث حالة الرسالة في الـ State لتظهر علامات الصح فوراً
+            setMessages(prev => prev.map(m => 
+                (m.id === fatwaId) ? { ...m, verified: true } : m
+            ));
+        }
+    });
+    return () => fatwaRef.off();
+}, []);
+
+
+            useEffect(() => {
+                if(window.lucide) lucide.createIcons();
+            }, [messages, loading, isDarkMode, isMenuOpen]);
+
+            const toggleTheme = () => {
+                setIsDarkMode(!isDarkMode);
+                document.documentElement.classList.toggle('dark');
+            };
+
+            const copyToClipboard = (text) => {
+                navigator.clipboard.writeText(text);
+                // إشعار بسيط (يمكن استبداله بـ Toast)
+                const btn = document.getElementById('copy-btn-hint');
+                alert("تم نسخ النص بنجاح!");
+            };
+
+         const handleAsk = async () => {
+    if (!input.trim() || loading) return;
+
+    const userText = input; // حفظ السؤال
+    let accumulatedResponse = ""; // تعريف المتغير ليراه بلوك finally
+
+    // 1. إضافة الرسائل للواجهة
+    setMessages(prev => [
+        ...prev, 
+        { role: 'user', text: userText },
+        { role: 'ai', text: "" } 
+    ]);
+    
+    setInput("");
+    setLoading(true);
+    setIsUserScrollingUp(false); 
+
+    try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer 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`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userText }
+                ],
+                temperature: 0.3,
+                stream: true,
+            })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n");
+
+            for (const line of lines) {
+                const message = line.replace(/^data: /, "").trim();
+                if (message === "" || message === "[DONE]") continue;
+
+                try {
+                    const parsed = JSON.parse(message);
+                    const content = parsed.choices[0].delta.content;
+                    if (content) {
+                        accumulatedResponse += content;
+                        setMessages(prev => {
+                            const newMessages = [...prev];
+                            newMessages[newMessages.length - 1].text = accumulatedResponse;
+                            return newMessages;
+                        });
+                    }
+                } catch (e) {}
+            }
+        }
+    } catch (error) {
+        console.error("خطأ في الاتصال:", error);
+        setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1].text = "عذراً، حدث خطأ في الاتصال بالخادم.";
+            return newMessages;
+        });
+    } finally {
+        setLoading(false);
+
+        // --- إعدادات الحفظ والتنبيه ---
+        const msgId = Date.now().toString();
+        const timestamp = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+        const browserName = navigator.userAgent.includes("Chrome") ? "Chrome" : "Browser";
+
+        try {
+            // 1. الحفظ في Firebase (للتوثيق اللحظي)
+            await db.ref('fatwas/' + msgId).set({
+                id: msgId,
+                question: userText,
+                answer: accumulatedResponse,
+                verified: false,
+                time: timestamp,
+                browser: browserName
+            });
+
+            // 2. إرسال التنبيه لتليجرام
+            const botToken = "8001439036:AAFAVndQ0GlWuz0djflhyPYo5Jo17oMLAHo";
+            const chatId = "6068331455";
+            const alertMsg = `🔔 *تنبيه: فتوى جديدة للمراجعة* \n⏰ الوقت: ${timestamp} \n🌐 المتصفح: ${browserName} \n❓ السؤال: ${userText.substring(0, 50)}...`;
+
+            fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: chatId, text: alertMsg, parse_mode: "Markdown" })
+            });
+
+            // 3. ربط الـ ID بالرسالة الحالية ليظهر "الصح" لاحقاً
+            setMessages(prev => {
+                const newMessages = [...prev];
+                if (newMessages.length > 0) {
+                    newMessages[newMessages.length - 1].id = msgId;
+                }
+                return newMessages;
+            });
+
+        } catch (fbError) {
+            console.error("Firebase Sync Error:", fbError);
+        }
+
+        // --- ميزة الانتقال الذكي (التي سقطت سهواً) ---
+        setTimeout(() => {
+            // أولاً النزول لآخر الرد لضمان تحميل المساحة
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+
+            // ثانياً القفزة لبداية كارت السؤال
+            setTimeout(() => {
+                const allMessages = document.querySelectorAll('.animate-in');
+                if (allMessages.length >= 2) {
+                    const userQuestionCard = allMessages[allMessages.length - 2];
+                    userQuestionCard.scrollIntoView({ 
+                        behavior: "smooth", 
+                        block: "start" 
+                    });
+                }
+            }, 800); 
+        }, 100);
+
+        // تحديث الأيقونات (Lucide)
+        setTimeout(() => {
+            if (window.lucide) window.lucide.createIcons();
+        }, 200);
+    }
+};
+
+
+
+            const formatAIContent = (text) => {
+    // تحويل الماركدوان إلى HTML آمن
+    const rawHtml = marked.parse(text);
+    return <div dangerouslySetInnerHTML={{ __html: rawHtml }} className="prose dark:prose-invert max-w-none shadow-sm" />;
+};
+
+            return (
+                <div className="h-screen flex flex-col relative transition-colors duration-500">
+         {/* الخلفية (الترمينال والترحيب) - نسخة التكبير اليدوي */}
+<div className={`hero-bg px-4 flex flex-col items-center justify-center ${isHeroProminent ? 'hero-initial-glow animate-welcome' : 'hero-faded'}`}>
+    
+    <i 
+        data-lucide="terminal" 
+        className="w-[150px] h-[150px] mx-auto mb-6 transition-all duration-1000"
+        style={{ 
+            color: isHeroProminent ? '#3B82F6' : 'currentColor',
+            filter: isHeroProminent ? 'drop-shadow(0 0 20px rgba(59, 130, 246, 0.6))' : 'none'
+        }}
+    ></i>
+    
+    <h1 className={`text-4xl md:text-6xl font-black mb-4 transition-all duration-1000 ${isHeroProminent ? 'text-white scale-110' : 'text-slate-500'}`}>
+        مرحباً بك في <span className="text-blue-500">{`{ Selfie AI }`}</span>
+    </h1>
+    
+    <p className={`text-lg font-bold tracking-[0.2em] uppercase transition-all duration-1000 ${isHeroProminent ? 'opacity-100 text-blue-400' : 'opacity-20'}`}>
+        يتم الإجابة من المصادر السلفية
+    </p>
+</div>
+
+                    {/* الهيدر المطور */}
+<header className="fixed top-0 w-full z-50 bg-[var(--header-bg)] backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-between items-center transition-all">
+    {/* الجهة اليمنى: اللوجو */}
+   <div className="flex items-center gap-2 group cursor-default" style={{direction: 'ltr'}}>
+    {/* علامة البداية */}
+    <span className="text-blue-500 font-black text-2xl drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">{"<"}</span>
+    
+    {/* الكلمة الرئيسية مع التأثيرات المطلوبة */}
+    <span className="text-red font-[900] text-2xl tracking-tighter transition-all duration-300 
+        /* في الوضع الفاتح (الافتراضي الآن): توهج أزرق قوي */
+        drop-shadow-[0_0_12px_rgba(59,130,246,0.8)] 
+        /* في الوضع الغامق: تظل بيضاء وواضحة */
+        dark:text-white dark:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+        Selfie AI
+    </span>
+    
+    {/* علامة النهاية */}
+    <span className="text-blue-500 font-black text-2xl drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">{"/>"}</span>
+</div>
+
+    {/* الجهة اليسرى: الترتيب المطلوب */}
+    <div className="flex items-center gap-3 text-slate-400 font-mono">
+        <span className="text-blue-500/50 font-bold">//</span>
+        
+        {/* زر تغيير الوضع */}
+        <button 
+            onClick={toggleTheme}
+            className="p-2 rounded-xl bg-blue-50 dark:bg-slate-800/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all border border-blue-100 dark:border-transparent"
+        >
+            <i data-lucide={isDarkMode ? "sun" : "moon"} className="w-5 h-5 text-blue-600"></i>
+        </button>
+
+        <span className="text-blue-500/50 font-bold">//</span>
+
+        {/* الثلاث نقاط (القائمة) */}
+        <div className="relative">
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-all">
+              <i data-lucide={isMenuOpen ? "x" : "menu"} className="w-6 h-6 text-slate-600 dark:text-slate-300 transition-transform duration-300"></i>
+
+            </button>
+                                
+                                {isMenuOpen && (
+                                    <div className="absolute left-0 mt-3 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl py-3 animate-in fade-in zoom-in duration-200 z-[100]">
+                                        <button className="w-full text-right px-5 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center justify-between group">
+                                            تواصل معنا <i data-lucide="message-circle" className="w-4 h-4 text-blue-500"></i>
+                                        </button>
+                                        <button className="w-full text-right px-5 py-3 hover:bg-pink-50 dark:hover:bg-pink-900/20 flex items-center justify-between group">
+                                            تقديم دعم ❤️ <i data-lucide="heart" className="w-4 h-4 text-pink-500"></i>
+                                        </button>
+                                        <div className="h-[1px] bg-slate-100 dark:bg-slate-800 my-1"></div>
+                                        <button className="w-full text-right px-5 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-between group text-red-500">
+                                            إبلاغ عن مشكلة <i data-lucide="alert-triangle" className="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+<div className="fixed top-[73px] w-full bg-[#3B82F6]/5 border-b border-[#3B82F6]/20 py-2 overflow-hidden whitespace-nowrap z-40">
+    <div className="inline-block animate-marquee-continuous">
+        {/* النص باللون المطلوب #3B82F6 مع خاصية التوهج */}
+        <span className="mx-4 text-sm font-black text-[#3B82F6] drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">
+            قرآن وسنة بفهم سلف الأمة • توحيد • تزكية • اتباع الصحابة رضوان الله عليهم •
+        </span>
+        <span className="mx-4 text-sm font-black text-[#3B82F6] drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">
+            قرآن وسنة بفهم سلف الأمة • توحيد • تزكية • اتباع الصحابة رضوان الله عليهم •
+        </span>
+        <span className="mx-4 text-sm font-black text-[#3B82F6] drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">
+            قرآن وسنة بفهم سلف الأمة • توحيد • تزكية • اتباع الصحابة رضوان الله عليهم •
+        </span>
+    </div>
+</div>
+
+
+                    {/* منطقة المحتوى */}
+                    <main className="flex-1 overflow-y-auto pt-32 pb-48 custom-scroll px-8">
+                        <div className="max-w-5xl mx-auto">
+                            {messages.map((msg, i) => (
+                                <div key={i} className="mb-12 animate-in fade-in slide-in-from-bottom-5">
+                                    {msg.role === 'user' ? (
+    <UserMessage text={msg.text} />
+) : (
+  <div className="ai-card relative group bg-white/70 dark:bg-slate-900/60 backdrop-blur-md p-8 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-xl mb-12">
+    
+    {/* الهيدر العلوي الجديد: يجمع بين الحالة والنسخ */}
+    <div className="absolute -top-6 left-6 right-6 flex items-center justify-between z-20">
+        
+        {/* الجهة اليمنى: الدوائر والحالة */}
+        <div className="flex flex-col items-start gap-1">
+            {/* النص المتوهج فوق الدوائر */}
+            <span className={`status-text-glow text-[11px] px-2 py-0.5 rounded-md ${msg.verified ? 'text-green-500' : 'dark:text-white text-black'}`}>
+                {msg.verified ? "إجابة معتمدة" : "قيد المراجعة العلمية"}
+            </span>
+            
+            <div className="flex items-center gap-2 mr-1">
+                {/* الدائرة الأولى: زرقاء دائماً (تعبر عن ذكاء الآلة) */}
+                <div className="status-circle bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]">
+                    <i data-lucide="cpu" className="w-3 h-3 text-white"></i>
+                </div>
+
+                {/* الدائرة الثانية: تتغير عند التوثيق */}
+                {msg.verified ? (
+                    <div className="status-circle circle-verified animate-in zoom-in">
+                        <i data-lucide="check" className="w-4 h-4 text-white font-bold"></i>
+                    </div>
+                ) : (
+                    <div className="status-circle bg-slate-300 dark:bg-slate-700">
+                        <i data-lucide="clock" className="w-3 h-3 text-white opacity-50"></i>
+                    </div>
+                )}
+            </div>
+        </div>
+
+        {/* الجهة اليسرى: زر النسخ كما هو مع توهج أزرق */}
+        <button 
+            onClick={() => copyToClipboard(msg.text)}
+            className="bg-[#3B82F6] hover:bg-blue-700 text-white px-5 py-2.5 rounded-full text-sm font-black shadow-[0_0_15px_rgba(59,130,246,0.5)] flex items-center gap-2 transition-all active:scale-90"
+        >
+            <i data-lucide="copy" className="w-4 h-4"></i> 
+            نسخ الإجابة
+        </button>
+    </div>
+
+    {/* محتوى الرد */}
+    <div className="text-lg font-medium leading-relaxed dark:text-slate-200 text-slate-700 mt-4">
+        {formatAIContent(msg.text)}
+    </div>
+</div>
+
+)}
+
+
+                                </div>
+                            ))}
+                             {loading && (
+            <div className="flex items-center gap-4 text-blue-500 font-bold animate-pulse text-xl mb-10">
+                <i data-lucide="refresh-cw" className="animate-spin"></i> جاري استنباط الرد من المراجع...
+            </div>
+        )}
+
+        {/* 👈 ضع هذا السطر هنا بالضبط في النهاية */}
+        <div ref={messagesEndRef} />
+    </div>
+</main>
+
+                    {/* الفوتر مع التوهج الدائم */}
+                    <footer className="fixed bottom-10 w-full px-6 z-50">
+                        <div className="max-w-4xl mx-auto">
+                            <div className="neon-input-permanent rounded-[32px] px-4 py-2">
+                                <div className="flex items-center">
+                                    <div className="p-3 text-blue-500">
+                                        <i data-lucide="zap" className="w-6 h-6"></i>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAsk()}
+                                        placeholder="كيف يمكنني مساعدتك اليوم؟"
+                                        className="flex-1 bg-transparent border-none outline-none text-xl py-4 dark:text-white text-slate-900 placeholder-slate-400 px-4 font-medium"
+                                    />
+                                    <button 
+                                        onClick={handleAsk}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95"
+                                    >
+                                        <i data-lucide="send-horizontal" className="w-7 h-7 rotate-180"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p className="text-center text-[10px] text-slate-400 mt-4 font-bold tracking-widest uppercase opacity-40">
+                                Powered by Selfie AI // Reference Engine
+                            </p>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+
