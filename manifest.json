@@ -1,0 +1,24 @@
+{
+  "short_name": "ال سلفي AI",
+  "name": "نموذج السلفي للرد على الفتاوى",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2592/2592186.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2592/2592186.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1e1f20",
+  "background_color": "#131314",
+  "dir": "rtl",
+  "lang": "ar"
+}
+
